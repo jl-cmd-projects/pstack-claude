@@ -29,12 +29,13 @@ jobs:
   build:
     name: Build and test upstream's tree with this fork's paths
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     outputs:
       fork_commit: ${{ steps.build.outputs.fork_commit }}
       upstream_commit: ${{ steps.build.outputs.upstream_commit }}
+      cursor_commit: ${{ steps.build.outputs.cursor_commit }}
       tree: ${{ steps.build.outputs.tree }}
     steps:
       - name: Check the target branch
@@ -48,44 +49,41 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 1
           persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.4"
       - name: Test the tree builder
         run: .github/upstream-sync/build-tree.test.sh
       - name: Test the fork's hooks
         run: python3 -m unittest discover -v -s fork/tests
-      - name: Build the tree and check this branch for drift
+      - name: Build the synced tree from michael-denyer and cursor/plugins
         id: build
         run: |
           fork_commit=$(git rev-parse HEAD)
-          synced_commit=$(cat .github/upstream-commit)
-          git fetch --quiet --depth=1 "https://github.com/${UPSTREAM_REPOSITORY}.git" "${synced_commit}"
           git fetch --quiet --depth=1 "https://github.com/${UPSTREAM_REPOSITORY}.git" "${UPSTREAM_BRANCH}"
           upstream_commit=$(git rev-parse FETCH_HEAD)
-          rebuilt_tree=$(.github/upstream-sync/build-tree.sh "$synced_commit" "$fork_commit")
-          if [ "$rebuilt_tree" != "$(git rev-parse 'HEAD^{tree}')" ]; then
-            echo "::error::${TARGET_BRANCH} changed paths outside FORK_OWNED_PATHS (${FORK_OWNED_PATHS}). A sync would revert them:"
-            git diff --stat "$rebuilt_tree" HEAD
-            exit 1
-          fi
-          tree=$(.github/upstream-sync/build-tree.sh "$upstream_commit" "$fork_commit")
+          stage1_tree=$(.github/upstream-sync/build-tree.sh "$upstream_commit" "$fork_commit")
+          git read-tree --reset -u "$stage1_tree"
+          bun install --frozen-lockfile
+          (cd plugins && bun install --frozen-lockfile)
+          .github/upstream-sync/sync-cursor-upstream.sh
+          cursor_commit=$(jq -r '.components.pstack.sha' tools/upstream.json)
+          git add -A
+          tree=$(git write-tree)
           {
             echo "fork_commit=$fork_commit"
             echo "upstream_commit=$upstream_commit"
+            echo "cursor_commit=$cursor_commit"
           } >> "$GITHUB_OUTPUT"
-          if [ "$tree" = "$(git rev-parse 'HEAD^{tree}')" ]; then
-            echo "${TARGET_BRANCH} already matches ${UPSTREAM_REPOSITORY}@${upstream_commit}"
+          if [ "$tree" = "$(git rev-parse "${fork_commit}^{tree}")" ]; then
+            echo "${TARGET_BRANCH} already matches ${UPSTREAM_REPOSITORY}@${upstream_commit:0:7} + cursor/plugins@${cursor_commit:0:7}"
             exit 0
           fi
           echo "tree=$tree" >> "$GITHUB_OUTPUT"
-          git diff --stat HEAD "$tree"
-          git read-tree --reset -u "$tree"
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        if: steps.build.outputs.tree != ''
-        with:
-          bun-version: "1.3.14"
+          git diff --stat "$fork_commit" "$tree"
       - name: Test the built tree
         if: steps.build.outputs.tree != ''
         run: |
-          bun install --frozen-lockfile
           bun tools/generate.mjs --check
           bun test tests/
 
@@ -94,32 +92,43 @@ jobs:
     needs: build
     if: needs.build.outputs.tree != ''
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
-      contents: write # push the sync commit to the target branch
-      actions: write # start CI and Security on the pushed commit
+      contents: write
+      actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.build.outputs.fork_commit }}
           fetch-depth: 1
           persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.4"
       - name: Rebuild the tested tree and commit it
         id: commit
         env:
           UPSTREAM_COMMIT: ${{ needs.build.outputs.upstream_commit }}
+          CURSOR_COMMIT: ${{ needs.build.outputs.cursor_commit }}
           TESTED_TREE: ${{ needs.build.outputs.tree }}
         run: |
           git fetch --quiet --depth=1 "https://github.com/${UPSTREAM_REPOSITORY}.git" "${UPSTREAM_COMMIT}"
-          tree=$(.github/upstream-sync/build-tree.sh "$UPSTREAM_COMMIT" HEAD)
+          stage1_tree=$(.github/upstream-sync/build-tree.sh "$UPSTREAM_COMMIT" HEAD)
+          git read-tree --reset -u "$stage1_tree"
+          bun install --frozen-lockfile
+          (cd plugins && bun install --frozen-lockfile)
+          .github/upstream-sync/sync-cursor-upstream.sh --pin "$CURSOR_COMMIT"
+          git add -A
+          tree=$(git write-tree)
           if [ "$tree" != "$TESTED_TREE" ]; then
             echo "::error::rebuilt tree ${tree} differs from the tested tree ${TESTED_TREE}"
             exit 1
           fi
           commit=$(git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit-tree "$tree" -p HEAD \
-            -m "Sync to ${UPSTREAM_REPOSITORY}@${UPSTREAM_COMMIT:0:7}" \
-            -m "Upstream-Commit: ${UPSTREAM_COMMIT}")
+            -m "Sync to ${UPSTREAM_REPOSITORY}@${UPSTREAM_COMMIT:0:7} and cursor/plugins@${CURSOR_COMMIT:0:7}" \
+            -m "Upstream-Commit: ${UPSTREAM_COMMIT}" \
+            -m "Cursor-Plugins-Commit: ${CURSOR_COMMIT}")
           git log --oneline -1 "$commit"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Push the commit and start CI and Security on it
@@ -140,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      issues: write # open, comment on, or close the sync failure issue
+      issues: write
     steps:
       - name: Open the sync failure issue, or close it after a good run
         env:

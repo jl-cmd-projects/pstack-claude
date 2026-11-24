@@ -1,8 +1,8 @@
 diff --git a/plugins/pstack/skills/maintain-verification-skill/SKILL.md b/plugins/pstack/skills/maintain-verification-skill/SKILL.md
-index ddf4fac..f0f1fc7 100644
+index 714455b..c7f46af 100644
 --- a/plugins/pstack/skills/maintain-verification-skill/SKILL.md
 +++ b/plugins/pstack/skills/maintain-verification-skill/SKILL.md
-@@ -27,7 +27,7 @@ Only edit the verification skill's own directory (its SKILL.md, features/, and a
+@@ -29,7 +29,7 @@ Only edit the verification skill's own directory (its SKILL.md, features/, and a
  
  ## Pass
  
@@ -11,20 +11,3 @@ index ddf4fac..f0f1fc7 100644
  
  1. **Index hygiene.** Read the feature map README and glob its sibling files. Fix missing, extra, duplicate, or dead entries. Lightweight; no generated inventory.
  
-diff --git a/tools/forks.json b/tools/forks.json
-index 59e6acc..f68a836 100644
---- a/tools/forks.json
-+++ b/tools/forks.json
-@@ -36,6 +36,12 @@
-       "since": "0.9.29",
-       "upstream": "not-proposed"
-     },
-+    "plugins/pstack/skills/maintain-verification-skill/SKILL.md": {
-+      "kind": "policy",
-+      "why": "Finds the target page from a session the args name, looks for it on origin/main, open PR heads, then sibling worktrees, and reports a duplicate or untracked driver before any feature-map edit.",
-+      "since": "0.9.99",
-+      "upstream": "not-proposed"
-+    },
-     "plugins/pstack/skills/no-comments/SKILL.md": {
-       "kind": "policy",
-       "why": "Treats a HOLD that names its dependency, platform, vendor, or protocol rule and where to check it as settled for the run, restores as a HOLD any kill of such a comment without a refuting page or file, and limits a second rejected report's failure to that report's findings so the accepted work still lands.",

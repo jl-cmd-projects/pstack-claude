@@ -1,8 +1,8 @@
 diff --git a/plugins/pstack/skills/poteto-mode/SKILL.md b/plugins/pstack/skills/poteto-mode/SKILL.md
-index e2b40ed..262e369 100644
+index 632b952..ecd4e9d 100644
 --- a/plugins/pstack/skills/poteto-mode/SKILL.md
 +++ b/plugins/pstack/skills/poteto-mode/SKILL.md
-@@ -107,6 +107,10 @@ You own every subagent's work. Review the diff and write your own summary, don't
+@@ -104,6 +104,10 @@ You own every subagent's work. Review the diff and write your own summary. A sec
  
  **A review gate stays closed when no independent reviewer can run.** An agent limit, subagent dispatch turned off, or a skills-only install can leave a required review with no reviewer. Keep the results of reviewers already dispatched. As the one exception to fresh subagents, reuse a finished reviewer only through the runtime's own follow-up action, only if it did not write the change, and only with the full current brief and head revision. A reused reviewer counts once. Never count your own review, passing tests, or CI as the independent verdict. Record `BLOCKED: independent review` in the todolist, keep merge-ready and shipping closed, and report which reviewers ran and which are missing. Work that doesn't depend on the review continues. A fan-out skill run only to explore may fall back to one labelled sequential pass.
  
@@ -12,7 +12,7 @@ index e2b40ed..262e369 100644
 +
  ## Writing the reply
  
- Write the reply clean as you draft it. A cleanup pass after drafting does not remove these patterns.
+ Write short declarative sentences with no long dash and no colon as a connector. Lead with what changes for the user. Give each claim its evidence or a label (measured, inferred, or guess). Never hand the human a check you could run. Keep every item the playbook's reply names, each rendered as prose, with no section headers.
 diff --git a/plugins/pstack/skills/poteto-mode/references/haiku-slim.md b/plugins/pstack/skills/poteto-mode/references/haiku-slim.md
 new file mode 100644
 index 0000000..b1de972

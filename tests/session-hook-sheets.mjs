@@ -1,11 +1,12 @@
 // The off-switch grammar every SessionStart implementation must agree on:
-// session-start.sh, session-start.ps1, and Pi's parseSheet. The sheet is
+// session-start.sh, session-start.ps1, Pi's parseSheet, and OpenCode. The sheet is
 // UTF-8, or UTF-16 LE when it starts with that byte-order mark, which is what
 // Windows PowerShell 5.1's `>` writes. A leading byte-order mark is dropped,
 // lines end at LF, and one CR before the LF is dropped; any other CR is part of
-// the line. Only a line that is then exactly `session hook: off` disables
-// injection. A sheet that cannot be read as a file leaves injection on, as a
-// missing sheet does.
+// the line, and so is a NUL. Only a line that is then exactly
+// `session hook: off` disables injection. A sheet that cannot be read as a
+// file, or that starts with the UTF-16 LE byte-order mark but is not valid
+// UTF-16 LE, leaves injection on, as a missing sheet does.
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 
 export const UNREADABLE = Symbol("unreadable sheet");
@@ -22,6 +23,13 @@ export const sheetCases = [
   { name: "off with CRLF endings", sheet: "bug-fix: configured-model\r\nsession hook: off\r\n", off: true },
   { name: "off after a byte-order mark", sheet: "﻿session hook: off\n", off: true },
   { name: "off in UTF-16 LE after a byte-order mark", sheet: Buffer.from("﻿session hook: off\r\n", "utf16le"), off: true },
+  { name: "off in UTF-16 LE with an odd byte count", sheet: Buffer.concat([Buffer.from("\ufeffsession hook: off\n", "utf16le"), Buffer.from([0x0a])]), off: false },
+  { name: "off in UTF-16 LE after an unpaired surrogate", sheet: Buffer.from("\ufeff\ud800\nsession hook: off\n", "utf16le"), off: false },
+  { name: "off in UTF-16 LE after two byte-order marks", sheet: Buffer.from("\ufeff\ufeffsession hook: off\n", "utf16le"), off: false },
+  { name: "off in UTF-16 LE without a byte-order mark", sheet: Buffer.from("session hook: off\n", "utf16le"), off: false },
+  { name: "a NUL inside off", sheet: "session hook: o\u0000ff\n", off: false },
+  { name: "off after a line holding a NUL", sheet: "bug-fix: m\u0000\nsession hook: off\n", off: true },
+  { name: "off after a byte that is not UTF-8", sheet: Buffer.concat([Buffer.from("note: caf"), Buffer.from([0xe9]), Buffer.from("\nsession hook: off\n")]), off: true },
   { name: "a CR before the LF and another after off", sheet: "session hook: off\r\r\n", off: false },
   { name: "lone CRs around off", sheet: "a\rsession hook: off\r", off: false },
   { name: "a CR inside off", sheet: "session hook: o\rff\n", off: false },
@@ -45,6 +53,18 @@ export const sheetCases = [
 // `inherit-parent`, each with an optional known `@effort`. A usable default
 // effort follows, and roles print in models.json order. `roles` is what follows
 // the mandate and sheet note; an empty list means the mandate alone.
+// PSTACK_SESSION_HOOK values as [label, value, turns the hook off]. Only the
+// exact bytes `off` count, so a zero-width or soft-hyphen variant injects in
+// PowerShell as it does in sh.
+export const sessionHookValues = [
+  ['"off"', "off", true],
+  ['"on"', "on", false],
+  ['"OFF"', "OFF", false],
+  ["empty", "", false],
+  ['"off" with a trailing zero-width space', "off" + String.fromCharCode(0x200b), false],
+  ['"off" after a soft hyphen', String.fromCharCode(0xad) + "off", false],
+];
+
 export const roleCases = [
   { name: "a model ID", sheet: "bug-fix: muse-wonder-1.0\n", roles: ["bug-fix: muse-wonder-1.0"] },
   { name: "two model IDs", sheet: "bug-fix: a-1, b-2\n", roles: ["bug-fix: a-1, b-2"] },
@@ -58,7 +78,7 @@ export const roleCases = [
   { name: "a tab inside an entry", sheet: "bug-fix: a\tb\n", roles: [] },
   { name: "a space before the colon", sheet: "bug-fix :a-1\n", roles: ["bug-fix: a-1"] },
   { name: "a colon inside the value", sheet: "bug-fix: a:b\n", roles: [] },
-  { name: "roles whose names hold commas", sheet: "feature, refactoring: m-1\nreflect judgment, divergent, synthesizer: m-1, m-2 @high\n", roles: ["feature, refactoring: m-1", "reflect judgment, divergent, synthesizer: m-1, m-2 @high"] },
+  { name: "a role whose name holds a comma, beside a list", sheet: "feature, refactoring: m-1\narena cross-judge pool: m-1, m-2 @high\n", roles: ["feature, refactoring: m-1", "arena cross-judge pool: m-1, m-2 @high"] },
   { name: "a non-ASCII entry", sheet: "bug-fix: caf\u00e9\n", roles: [] },
   { name: "a no-break space before the entry", sheet: "bug-fix:\u00a0m-1\n", roles: [] },
   { name: "a later unusable line for the role", sheet: "bug-fix: good-1\nbug-fix: !!\n", roles: [] },
@@ -81,6 +101,8 @@ export const roleCases = [
   { name: "an entry starting with a dot", sheet: "bug-fix: .m\n", roles: [] },
   { name: "an uppercase model ID", sheet: "bug-fix: Muse-1\n", roles: [] },
   { name: "UTF-16 LE after a byte-order mark", sheet: Buffer.from("\ufeffbug-fix: m-1\r\ndefault effort: max\r\n", "utf16le"), roles: ["bug-fix: m-1", "default effort: max"] },
+  { name: "UTF-16 LE with an odd byte count", sheet: Buffer.concat([Buffer.from("\ufeffbug-fix: m-1\n", "utf16le"), Buffer.from([0x0a])]), roles: [] },
+  { name: "a NUL inside an entry", sheet: "bug-fix: m-\u00001\n", roles: [] },
 ];
 
 // Write a case's sheet at path; UNREADABLE puts a directory there instead, and
