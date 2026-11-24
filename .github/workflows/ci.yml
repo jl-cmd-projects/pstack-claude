@@ -480,7 +480,7 @@ jobs:
       - name: Test the tree builder
         run: .github/upstream-sync/build-tree.test.sh
       - name: Test the fork's hooks
-        run: python3 -m unittest discover -v -s fork/tests
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -v -s fork/tests
       - name: Check fork hooks and patches rebuild cleanly on upstream
         run: |
           set -eo pipefail
