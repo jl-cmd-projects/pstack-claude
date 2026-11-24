@@ -94,8 +94,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
-      actions: write
+      contents: write # push the sync commit to the target branch
+      actions: write # start CI and Security on the pushed commit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -149,7 +149,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      issues: write
+      issues: write # open, comment on, or close the sync failure issue
     steps:
       - name: Open the sync failure issue, or close it after a good run
         env:
