@@ -44,7 +44,7 @@ Inside poteto-mode, the **Babysit** playbook ([`../poteto-mode/playbooks/babysit
 
 4. **When to stop.**
    - Build is green, every comment resolved, branch merges cleanly → call it ready.
-   - You've run three rounds of fix → push → recheck and it still isn't fully green → stop, summarise what's still broken, and hand control back.
+   - Three review rounds have run and none raised a security finding → fix the third round's findings, push, and call it merge-ready once checks pass. One more review runs after that; post its findings as a GitHub issue instead of fixing them on this PR. Reaching three rounds is not a reason to stop or hand back.
    - The next fix would force a design choice → pause and put it to the user with `AskUserQuestion`.
 
 5. **Report.** Summarize fixes applied, comments addressed, comments deferred (with reason), current PR status. Cite each commit by SHA.
