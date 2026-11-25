@@ -18,7 +18,7 @@ Each `fork/patches/*.patch` file is a `git diff` against upstream's tree. Each s
 
 | Patch | What it does |
 | ----- | ------------ |
-| `babysit-review-rounds.patch` | Replaces the babysit skill's stop-after-three-rounds rule. After three review rounds with no security finding, the agent fixes the third round's findings and calls the PR merge-ready; one more review runs and its findings go to a GitHub issue. |
+| `babysit-review-rounds.patch` | Replaces the babysit skill's stop-after-three-rounds rule. After three review rounds that needed fixes, the agent fixes the third round's findings, waits for one more review of that push, files its findings in one GitHub issue, and calls the PR merge-ready. Security, uncategorized, and protected-path findings are still fixed on the PR. |
 | `maintain-verification-target-lookup.patch` | Makes maintain-verification-skill find its target page from a session the args name, look for that page on origin/main, open PR heads, then sibling worktrees, and report a duplicate or untracked driver before any feature-map edit. |
 | `poteto-mode-haiku-slim.patch` | Adds the poteto-mode Haiku subagents section and `references/haiku-slim.md`. A Haiku role runs headless on the slim profile with `--autocompact 100k`. |
 | `reflect-close-all.patch` | Adds a close-all mode to `reflect/SKILL.md` that fixes and independently verifies every Accepted and Backlog row in the same run. |
