@@ -1,5 +1,5 @@
 diff --git a/plugins/pstack/skills/babysit/SKILL.md b/plugins/pstack/skills/babysit/SKILL.md
-index 3a85256..cfb14af 100644
+index 3a85256..cce7053 100644
 --- a/plugins/pstack/skills/babysit/SKILL.md
 +++ b/plugins/pstack/skills/babysit/SKILL.md
 @@ -44,7 +44,7 @@ Inside poteto-mode, the **Babysit** playbook ([`../poteto-mode/playbooks/babysit
@@ -7,7 +7,7 @@ index 3a85256..cfb14af 100644
  4. **When to stop.**
     - Build is green, every comment resolved, branch merges cleanly → call it ready.
 -   - You've run three rounds of fix → push → recheck and it still isn't fully green → stop, summarise what's still broken, and hand control back.
-+   - Three review rounds have needed fixes → fix the third round's findings and push. One more review runs on the lines that push changed; wait for it. File its findings in one GitHub issue, reply `Does not matter:` with the issue link on each of their threads, and resolve them. Keep on this PR, and fix, any finding that is a security finding, has no category, or names a protected path such as `.github/workflows/`. Then call it merge-ready once checks pass. A round counts only when its review posted a finding that needed a fix, and a security finding is fixed in whatever round it appears. Reaching three rounds is not a reason to stop or hand back.
++   - Three review rounds have needed fixes → fix the third round's findings and push. Call it merge-ready once checks pass, and merge it if the user asked for a merge. Do not wait for another review first. One more review then runs on the lines that push changed. File its findings in one GitHub issue, reply `Does not matter:` with the issue link on each of their threads, and resolve them. That review never blocks the merge. A round counts only when its review posted a finding that needed a fix. In rounds one to three, fix on this PR any finding that is a security finding, has no category, or names a protected path such as `.github/workflows/`. If the after-merge review raises one, put it in the issue and open a follow-up PR that fixes it. Reaching three rounds is not a reason to stop or hand back.
     - The next fix would force a design choice → pause and put it to the user with `AskUserQuestion`.
  
  5. **Report.** Summarize fixes applied, comments addressed, comments deferred (with reason), current PR status. Cite each commit by SHA.
